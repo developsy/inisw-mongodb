@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>할일 목록 서비스</title>
+</head>
+<body>
+    <h1><%=title %></h1>
+    <h3><%=subtitle %></h3><hr />
+    <div>
+        <h3>서비스 목록</h3>
+        <span> [ ( )속의 값은 HTTP body로 전달할 JSON 필드</span> ]
+    </div>
+    <ul>
+        <li>GET /todolist/:owner</li>
+        <div>
+            : 특정 소유자의 할일 목록 조회
+        </div>
+        <br/>
+        <li>GET /todolist/:owner/:id</li>
+        <div>
+            : 특정 소유자의 할일 한건 조회
+        </div>
+        <br/>
+        <li>POST /todolist/:owner</li>
+        <div>
+            : 특정 소유자의 할일 한건 추가(todo, desc)
+        </div>
+        <br/>
+        <li>PUT /todolist/:owner/:id</li>
+        <div>
+            : 특정 소유자의 할일 한건 수정(todo, desc, completed)
+        </div>
+        <br/>
+        <li>PUT /todolist/:owner/:id/completed</li>
+        <div>
+            : 특정 소유자의 할일 한건의 completed 값 토글
+        </div>
+        <br/>
+        <li>DELETE /todolist/:owner/:id</li>
+        <div>
+            : 특정 소유자의 할일 한건 삭제
+        </div>
+        <br/>
+    </ul>
+</body>
+</html>
