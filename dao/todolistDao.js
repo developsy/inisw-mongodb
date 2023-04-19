@@ -2,6 +2,7 @@ const { Todo } = require("./todolistDB");
 
 //구조분해 할당. 새로운 owner를 설정한다.
 //mongo db에 엑세스 할 때는 js쪽에서는 비동기처리를 사용한다.
+
 exports.createNewOwner = async ({ owner }) => {
   try {
     //row가 몇 개인지 센다. 속성명==필드명이면 필드명 생략 가능

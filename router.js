@@ -8,7 +8,7 @@ const todolistDao = require("./dao/todolistDao");
 router.get("/", (req, res) => {
   res.render("index", {
     title: "todolist 서비스 v1.0",
-    subtitle: "(node.js + express + lokijs)",
+    subtitle: "(node.js + express + mongodb)",
   });
 });
 
