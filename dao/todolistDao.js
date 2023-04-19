@@ -1,92 +1,20 @@
-const loki = require("lokijs");
-const fs = require("fs");
-const path = require("path");
-
-const objectid = require("bson-objectid");
-const baseDir = path.resolve(".");
-//todolist.db라는 파일로 저장. json 형태로 저장된다.
-const DBFILE = "todolist.db";
-const DBFILE_DIR = path.join(baseDir, "/" + DBFILE);
-
-//2초마다 한 번씩 파일로 저장.
-let db = new loki(DBFILE_DIR, {
-  autosave: true,
-  autosaveInterval: 2000,
-});
-
-let todolist;
-if (fs.existsSync(DBFILE_DIR)) {
-  db.loadDatabase({}, (err) => {
-    if (err) {
-      console.log("error : " + err);
-    } else {
-      console.log("### 기존 DB 파일 로드!");
-      todolist = db.getCollection("todolist");
-    }
-  });
-} else {
-  //데이터가 없으면 샘플 데이터 네 개를 넣는다
-  console.log("## 새로운 DB 파일 생성");
-  todolist = db.getCollection("todolist");
-  if (todolist === null) {
-    todolist = db.addCollection("todolist", { indices: ["owner", "id"] });
-    todolist.insert({
-      owner: "gdhong",
-      id: objectid().toHexString(),
-      todo: "ES6 공부",
-      desc: "ES6공부를 해야 합니다",
-      completed: true,
-    });
-    todolist.insert({
-      owner: "gdhong",
-      id: objectid().toHexString(),
-      todo: "Vue 학습",
-      desc: "Vue 학습을 해야 합니다",
-      completed: false,
-    });
-    todolist.insert({
-      owner: "gdhong",
-      id: objectid().toHexString(),
-      todo: "놀기",
-      desc: "노는 것도 중요합니다.",
-      completed: true,
-    });
-    todolist.insert({
-      owner: "gdhong",
-      id: objectid().toHexString(),
-      todo: "야구장",
-      desc: "프로야구 경기도 봐야합니다.",
-      completed: false,
-    });
-  }
-}
+const { Todo } = require("./todolistDB");
 
 //구조분해 할당. 새로운 owner를 설정한다.
-exports.createNewOwner = ({ owner }) => {
+//mongo db에 엑세스 할 때는 js쪽에서는 비동기처리를 사용한다.
+exports.createNewOwner = async ({ owner }) => {
   try {
-    let queryResult = todolist.find({ owner });
-    if (queryResult.length === 0) {
-      todolist.insert({
-        owner,
-        id: objectid().toHexString(),
-        todo: "ES6 공부",
-        desc: "ES6공부를 해야 합니다",
-        completed: true,
-      });
-      todolist.insert({
-        owner,
-        id: objectid().toHexString(),
-        todo: "Vue 학습",
-        desc: "React 학습을 해야 합니다",
-        completed: false,
-      });
-      todolist.insert({
-        owner,
-        id: objectid().toHexString(),
-        todo: "야구장",
-        desc: "프로야구 경기도 봐야합니다.",
-        completed: false,
-      });
+    //row가 몇 개인지 센다. 속성명==필드명이면 필드명 생략 가능
+    let count = await Todo.countDocuments({ owner });
+    console.log(count);
+    if (count === 0) {
+      //임포트한 Todo 객체를 사용하여 데이터를 insert한다.
+      let todo1 = new Todo({ owner, todo: "ES6 공부", desc: "ES6공부를 해야 합니다" });
+      let todo2 = new Todo({ owner, todo: "Vue 학습", desc: "React 학습을 해야 합니다" });
+      let todo3 = new Todo({ owner, todo: "야구장", desc: "프로야구 경기도 봐야합니다." });
+      await todo1.save();
+      await todo2.save();
+      await todo3.save();
       return { status: "success", message: "샘플 데이터 생성 성공!" };
     } else {
       return { status: "fail", message: "생성 실패 : 이미 존재하는 owner입니다." };
@@ -96,98 +24,81 @@ exports.createNewOwner = ({ owner }) => {
   }
 };
 
-exports.getTodoList = ({ owner }) => {
+exports.getTodoList = async ({ owner }) => {
   try {
-    let result = [];
-    let queryResult = todolist.chain().find({ owner }).simplesort("id", true).data();
+    let todolist = await Todo.find({ owner: owner }).sort({ _id: -1 });
+    //_id를 id로 바꾸기. mongo db 사용한다는걸 광고하는 것을 피하기 위함
+    todolist.map((t) => {
+      let { _id, users_id, todo, desc, completed } = t;
+      return { id: _id, users_id, todo, desc, completed };
+    });
+    //이제 데이터는 REST 형태로 화면에 나옴
+    return { status: "success", todolist };
+  } catch (ex) {
+    return { status: "fail", message: "조회 실패 : " + ex };
+  }
+};
 
-    for (var i = 0; i < queryResult.length; i++) {
-      let item = { ...queryResult[i] };
-      delete item.meta;
-      delete item["$loki"];
-      delete item.owner;
-      result.push(item);
+exports.getTodoItem = async ({ owner, id }) => {
+  try {
+    //위에서 바꿨으므로 _id는 id로 매핑하여 전달해야함.
+    let todoOne = await Todo.findOne({ owner, _id: id });
+    if (todoOne) {
+      let { _id, owner, todo, desc, completed } = todoOne;
+      return { status: "success", todoitem: { id: _id, owner, todo, desc, completed } };
+    } else {
+      return { status: "fail", message: "할일(Todo)이 존재하지 않습니다." };
     }
-    return result;
   } catch (ex) {
     return { status: "fail", message: "조회 실패 : " + ex };
   }
 };
 
-exports.getTodoItem = ({ owner, id }) => {
+exports.addTodo = async ({ owner, todo, desc }) => {
   try {
-    let one = todolist.findOne({ owner, id });
-    let item = { ...one };
-    delete item.meta;
-    delete item["$loki"];
-    delete item.owner;
-    return item;
-  } catch (ex) {
-    return { status: "fail", message: "조회 실패 : " + ex };
-  }
-};
-
-exports.addTodo = ({ owner, todo, desc }) => {
-  try {
+    //save메서드를 사용하여 insert
     if (todo === null || todo.trim() === "") {
       throw new Error("할일을 입력하셔야 합니다.");
     }
-    let item = { owner: owner, id: objectid().toHexString(), todo: todo, desc: desc, completed: false };
-    todolist.insert(item);
-    return { status: "success", message: "추가 성공", item: { id: item.id, todo: item.todo, desc: item.desc } };
+    let todoitem = new Todo({ owner, todo, desc });
+    await todoitem.save();
+    return { status: "success", message: "추가 성공", item: { id: todoitem._id, owner, todo, desc } };
   } catch (ex) {
     return { status: "fail", message: "추가 실패 : " + ex };
   }
 };
 
-exports.deleteTodo = ({ owner, id }) => {
+exports.updateTodo = async ({ owner, id, todo, desc, completed }) => {
   try {
-    let one = todolist.findOne({ owner, id });
-    if (one !== null) {
-      todolist.remove(one);
-      return { status: "success", message: "삭제 성공", item: { id: one.id, todo: one.todo } };
+    let result = await Todo.updateOne({ _id: id, owner }, { todo, desc, completed });
+    if (result.matchedCount === 1) {
+      return { status: "success", message: "할일 업데이트 성공", todoitem: { id, todo, desc, completed } };
     } else {
-      return { status: "fail", message: "삭제 실패 : 삭제하려는 데이터가 존재하지 않음" };
-    }
-  } catch (ex) {
-    return { status: "fail", message: "삭제 실패 : " + ex };
-  }
-};
-
-exports.updateTodo = ({ owner, id, todo, desc, completed }) => {
-  try {
-    let one = todolist.findOne({ owner, id });
-    if (one !== null) {
-      one.completed = completed;
-      one.todo = todo;
-      one.desc = desc;
-      todolist.update(one);
-      return {
-        status: "success",
-        message: "할일 변경 성공",
-        item: { id: one.id, todo: one.todo, desc: one.desc, completed: one.completed },
-      };
-    } else {
-      return { status: "fail", message: "할일 변경 실패 : 변경하려는 데이터가 존재하지 않음" };
+      return { status: "fail", message: "할일 업데이트 실패", result };
     }
   } catch (ex) {
     return { status: "fail", message: "할일 변경 실패 : " + ex };
   }
 };
 
-exports.toggleCompleted = ({ owner, id }) => {
+exports.deleteTodo = async ({ owner, id }) => {
   try {
-    let one = todolist.findOne({ owner, id });
-    if (one !== null) {
-      one.completed = !one.completed;
-      todolist.update(one);
-      return {
-        status: "success",
-        message: "완료 변경 성공",
-        item: { id: one.id, todo: one.todo, completed: one.completed },
-      };
+    await Todo.deleteOne({ owner, _id: id });
+    return { status: "success", message: "삭제 성공", item: { id } };
+  } catch (ex) {
+    return { status: "fail", message: "삭제 실패 : " + ex };
+  }
+};
+
+exports.toggleCompleted = async ({ owner, id }) => {
+  try {
+    let todoOne = await Todo.findOne({ owner, _id: id });
+    let completed = !todoOne.completed;
+    let result = await Todo.updateOne({ _id: id, owner }, { completed });
+    if (result.matchedCount === 1) {
+      return { status: "success", message: "할일 완료 처리 성공", todoitem: { id, completed } };
     } else {
-      return { status: "fail", message: "완료 변경 실패 : 변경하려는 데이터가 존재하지 않음" };
+      return { status: "fail", message: "할일 완료 처리 실패", result };
     }
   } catch (ex) {
     return { status: "fail", message: "완료 변경 실패 : " + ex };

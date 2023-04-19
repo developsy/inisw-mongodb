@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const mongodb = require("mongodb");
 const ObjectId = mongodb.ObjectId;
 
-let uri = proess.env.MONGODB_URI ? process.env.MONGODB_URI : "mongodb://127.0.0.1:27017/todolistdb";
+let uri = process.env.MONGODB_URI ? process.env.MONGODB_URI : "mongodb://127.0.0.1:27017/todolistdb";
 mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 
 const todoSchema = new mongoose.Schema({
@@ -14,3 +14,5 @@ const todoSchema = new mongoose.Schema({
 });
 
 const Todo = mongoose.model("todos", todoSchema);
+
+module.exports = { Todo };
